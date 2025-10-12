@@ -1,35 +1,39 @@
-import { useState, useEffect } from "react";
+// pages/Dashboard.tsx
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser, logout } from "@/lib/mockAuth";
-import { getActions, addAction } from "@/lib/mockData";
+import { Sprout, LogOut } from "lucide-react";
+import { signOutUser } from "@/lib/authHelpers";
 import { SubmissionForm } from "@/components/SubmissionForm";
 import { MySubmissions } from "@/components/MySubmissions";
 import { MyTokens } from "@/components/MyTokens";
-import { Sprout, LogOut } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { set } from "date-fns";
+
 
 const Dashboard = () => {
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0); // ✅ State to trigger refresh
 
-  useEffect(() => {
-    if (!user || user.role !== 'user') {
-      navigate('/login');
-    }
-  }, [user, navigate]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await signOutUser();
+    navigate("/login");
   };
 
   const handleRefresh = () => {
-    setUser(getCurrentUser());
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1); // Increment to trigger refresh
+    toast.success("Data submitted successfully!");
   };
 
-  if (!user) return null;
+
+  if (loading)
+    return <div className="p-6 text-center">Loading...</div>;
+
+  if (!user)
+    return <div className="p-6 text-center">No user data available.</div>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,9 +57,9 @@ const Dashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-8 max-w-6xl mx-auto">
-          <MyTokens userId={user.id} key={`tokens-${refreshKey}`} />
+          <MyTokens userId={user.id} />
           <SubmissionForm userId={user.id} userName={user.name} onSubmit={handleRefresh} />
-          <MySubmissions userId={user.id} key={`submissions-${refreshKey}`} />
+          <MySubmissions userId={user.id} refreshSignal={refreshKey}/>
         </div>
       </main>
     </div>

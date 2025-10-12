@@ -2,24 +2,70 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser, logout } from "@/lib/mockAuth";
 import { Sprout, LogOut, Gift, Leaf, ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 const Redeem = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
   const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
 
+  // ✅ Fetch user + profile from Supabase
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
+    const fetchUser = async () => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        navigate("/login");
+        return;
+      }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("name, total_tokens, role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        navigate("/login");
+        return;
+      }
+
+      setUser({ ...authData.user, ...profile });
+    };
+
+    fetchUser();
+  }, [navigate]);
+
+  // ✅ Real-time listener for profile token updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("realtime-profile-tokens")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newTokens = payload.new.total_tokens;
+          setUser((prev: any) => ({ ...prev, total_tokens: newTokens }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
   const rewards = [
@@ -28,36 +74,36 @@ const Redeem = () => {
       name: "Seedling Voucher",
       cost: 10,
       icon: Leaf,
-      description: "Voucher for 5 native tree seedlings"
+      description: "Voucher for 5 native tree seedlings",
     },
     {
       id: 2,
       name: "Garden Tool Kit",
       cost: 25,
       icon: ShoppingBag,
-      description: "Basic tools for land restoration"
+      description: "Basic tools for land restoration",
     },
     {
       id: 3,
       name: "Premium Compost",
       cost: 15,
       icon: Gift,
-      description: "20kg bag of organic compost"
-    }
+      description: "20kg bag of organic compost",
+    },
   ];
 
-  const handleRedeem = (reward: typeof rewards[0]) => {
+  const handleRedeem = (reward: (typeof rewards)[0]) => {
     if (!user) return;
-    
+
     if (user.total_tokens >= reward.cost) {
       toast({
         title: "Coming Soon!",
-        description: "Reward redemption will be available soon",
+        description: "Reward redemption will be available soon.",
       });
     } else {
       toast({
         title: "Insufficient Tokens",
-        description: `You need ${reward.cost - user.total_tokens} more tokens`,
+        description: `You need ${reward.cost - user.total_tokens} more tokens.`,
         variant: "destructive",
       });
     }
@@ -98,24 +144,26 @@ const Redeem = () => {
               {rewards.map((reward) => {
                 const Icon = reward.icon;
                 const canAfford = user.total_tokens >= reward.cost;
-                
+
                 return (
                   <div
                     key={reward.id}
                     className={`border border-border rounded-xl p-6 text-center ${
-                      !canAfford ? 'opacity-50' : ''
+                      !canAfford ? "opacity-50" : ""
                     }`}
                   >
                     <Icon className="h-12 w-12 mx-auto mb-4 text-primary" />
                     <h3 className="font-semibold text-lg mb-2">{reward.name}</h3>
                     <p className="text-sm text-muted-foreground mb-4">{reward.description}</p>
-                    <p className="text-2xl font-bold text-primary mb-4">{reward.cost} tokens</p>
+                    <p className="text-2xl font-bold text-primary mb-4">
+                      {reward.cost} tokens
+                    </p>
                     <Button
                       onClick={() => handleRedeem(reward)}
                       disabled={!canAfford}
                       className="w-full rounded-xl"
                     >
-                      {canAfford ? 'Redeem' : 'Insufficient Tokens'}
+                      {canAfford ? "Redeem" : "Insufficient Tokens"}
                     </Button>
                   </div>
                 );

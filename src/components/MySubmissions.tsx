@@ -1,14 +1,73 @@
-import { getActions } from "@/lib/mockData";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, XCircle } from "lucide-react";
 
 interface MySubmissionsProps {
   userId: string;
+  refreshSignal?: number; // ✅ New prop to allow parent to trigger refresh
 }
 
-export const MySubmissions = ({ userId }: MySubmissionsProps) => {
-  const actions = getActions().filter(a => a.user_id === userId);
+interface Submission {
+  id: string;
+  user_id: string;
+  activity_type: string;
+  description?: string;
+  location?: string;
+  photo_url: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
+export const MySubmissions = ({ userId, refreshSignal }: MySubmissionsProps) => {
+  const [submissions, setActions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchActions = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching actions:", error);
+    } else {
+      setActions(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  // 🔁 Fetch on mount and whenever userId or refreshSignal changes
+  useEffect(() => {
+    fetchActions();
+  }, [userId, refreshSignal]);
+
+  // 🔄 Real-time listener
+  useEffect(() => {
+    const channel = supabase
+      .channel("realtime-actions")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "actions",
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          await fetchActions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const statusConfig = {
     pending: { icon: Clock, label: "Pending", variant: "secondary" as const },
@@ -23,6 +82,17 @@ export const MySubmissions = ({ userId }: MySubmissionsProps) => {
     erosion_control: "Erosion Control",
   };
 
+  if (loading) {
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>My Submissions</CardTitle>
+          <CardDescription>Loading your submissions...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <Card className="rounded-2xl">
       <CardHeader>
@@ -30,35 +100,38 @@ export const MySubmissions = ({ userId }: MySubmissionsProps) => {
         <CardDescription>Track the status of your land care submissions</CardDescription>
       </CardHeader>
       <CardContent>
-        {actions.length === 0 ? (
+        {submissions.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">No submissions yet</p>
         ) : (
           <div className="space-y-4">
-            {actions.map((action) => {
-              const StatusIcon = statusConfig[action.status].icon;
+            {submissions.map((submission) => {
+              const StatusIcon = statusConfig[submission.status].icon;
               return (
-                <div key={action.id} className="border border-border rounded-xl p-4 flex gap-4">
+                <div key={submission.id} className="border border-border rounded-xl p-4 flex gap-4">
                   <img
-                    src={action.photo_url}
+                    src={submission.photo_url}
                     alt="Activity"
                     className="w-24 h-24 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.currentTarget.src = "/fallback-image.png"; // fallback in case image fails
+                    }}
                   />
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold">{activityLabels[action.activity_type]}</h3>
-                      <Badge variant={statusConfig[action.status].variant} className="rounded-full">
+                      <h3 className="font-semibold">{activityLabels[submission.activity_type]}</h3>
+                      <Badge variant={statusConfig[submission.status].variant} className="rounded-full">
                         <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusConfig[action.status].label}
+                        {statusConfig[submission.status].label}
                       </Badge>
                     </div>
-                    {action.description && (
-                      <p className="text-sm text-muted-foreground mb-1">{action.description}</p>
+                    {submission.description && (
+                      <p className="text-sm text-muted-foreground mb-1">{submission.description}</p>
                     )}
-                    {action.location && (
-                      <p className="text-sm text-muted-foreground">📍 {action.location}</p>
+                    {submission.location && (
+                      <p className="text-sm text-muted-foreground">📍 {submission.location}</p>
                     )}
                     <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(action.created_at).toLocaleDateString()}
+                      {new Date(submission.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>

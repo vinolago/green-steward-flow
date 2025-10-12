@@ -1,28 +1,49 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser, logout } from "@/lib/mockAuth";
 import { PendingActions } from "@/components/PendingActions";
 import { Sprout, LogOut } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 const Verify = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
+  const [user, setUser] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const navigate = useNavigate();
 
+  // ✅ Fetch authenticated user on mount
   useEffect(() => {
-    if (!user || user.role !== 'verifier') {
-      navigate('/login');
-    }
-  }, [user, navigate]);
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user) {
+        navigate("/login");
+        return;
+      }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+      // Optionally fetch profile from 'profiles' table if you store role there
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, role")
+        .eq("id", data.user.id)
+        .single();
+
+      if (!profile || profile.role !== "verifier") {
+        navigate("/dashboard");
+        return;
+      }
+
+      setUser({ ...data.user, ...profile });
+    };
+
+    fetchUser();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
   const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   };
 
   if (!user) return null;
@@ -37,9 +58,15 @@ const Verify = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              Verifier: <span className="font-medium text-foreground">{user.name}</span>
+              Verifier:{" "}
+              <span className="font-medium text-foreground">{user.name}</span>
             </span>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="rounded-xl">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="rounded-xl"
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>

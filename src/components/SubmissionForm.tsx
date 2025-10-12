@@ -5,9 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { addAction } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Upload } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 interface SubmissionFormProps {
   userId: string;
@@ -21,6 +21,7 @@ export const SubmissionForm = ({ userId, userName, onSubmit }: SubmissionFormPro
   const [location, setLocation] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,10 +36,44 @@ export const SubmissionForm = ({ userId, userName, onSubmit }: SubmissionFormPro
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const uploadPhotoToSupabase = async (file: File): Promise<string | null> => {
+    if (file.size > 5 * 1024 * 1024) {
+    toast({
+      title: "File too large",
+      description: "Please upload an image smaller than 5MB.",
+      variant: "destructive",
+    });
+    return null;
+  }
     
-    if (!activityType || !photoPreview) {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `submissions/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from("images")
+      .upload(filePath, file, {
+        contentType: file.type,
+      });
+    
+    if (error) {
+      console.error("Photo upload failed:", error);
+      toast({
+        title: "Upload failed",
+        description: "Could not upload photo. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const { data } = supabase.storage.from("images").getPublicUrl(filePath);
+    return data?.publicUrl || null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!activityType || !photoFile) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -47,27 +82,51 @@ export const SubmissionForm = ({ userId, userName, onSubmit }: SubmissionFormPro
       return;
     }
 
-    addAction({
-      user_id: userId,
-      user_name: userName,
-      activity_type: activityType as any,
-      description,
-      location,
-      photo_url: photoPreview,
-      status: 'pending'
-    });
+    setIsLoading(true);
 
-    toast({
-      title: "Success!",
-      description: "Your submission has been sent for verification",
-    });
+    try {
+      const photoUrl = await uploadPhotoToSupabase(photoFile);
+      if (!photoUrl) throw new Error("Failed to upload photo");
 
-    setActivityType("");
-    setDescription("");
-    setLocation("");
-    setPhotoFile(null);
-    setPhotoPreview("");
-    onSubmit();
+      const { error } = await supabase.from("submissions").insert([
+        {
+          user_id: userId,
+          activity_type: activityType,
+          description,
+          location,
+          photo_url: photoUrl,
+          status: "pending",
+        },
+      ]);
+
+      if (error) throw error;
+
+      console.log("Upload error details:", error);
+
+
+      toast({
+        title: "Success!",
+        description: "Your submission has been sent for verification.",
+      });
+
+      // Reset form
+      setActivityType("");
+      setDescription("");
+      setLocation("");
+      setPhotoFile(null);
+      setPhotoPreview("");
+
+      onSubmit();
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Submission failed",
+        description: err.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -141,8 +200,8 @@ export const SubmissionForm = ({ userId, userName, onSubmit }: SubmissionFormPro
             </div>
           </div>
 
-          <Button type="submit" className="w-full rounded-xl">
-            Submit for Verification
+          <Button type="submit" className="w-full rounded-xl" disabled={isLoading}>
+            {isLoading ? "Submitting..." : "Submit for Verification"}
           </Button>
         </form>
       </CardContent>

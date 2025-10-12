@@ -5,35 +5,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { signup, setCurrentUser } from "@/lib/mockAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Sprout } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient"; // ✅ new import
 
 const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<'user' | 'verifier'>('user');
+  const [role, setRole] = useState<"user" | "verifier">("user");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      const user = signup(name, email, password, role);
-      setCurrentUser(user);
+    setLoading(true);
+
+    // 1️⃣ Create the Supabase auth user
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      setLoading(false);
       toast({
-        title: "Account created!",
-        description: "Welcome to GreenToken",
-      });
-      navigate(role === 'verifier' ? '/verify' : '/dashboard');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create account",
+        title: "Signup failed",
+        description: error.message,
         variant: "destructive",
       });
+      return;
+    }
+
+    const user = data.user;
+
+    if (user) {
+      // 2️⃣ Create a profile row for the user in 'profiles' table
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: user.id,
+          name,
+          role,
+        },
+      ]);
+
+      setLoading(false);
+
+      if (profileError) {
+        toast({
+          title: "Error creating profile",
+          description: profileError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Account created!",
+        description: "Welcome to GreenToken. Check your email to confirm your account.",
+      });
+
+      navigate(role === "verifier" ? "/verify" : "/dashboard");
     }
   };
 
@@ -83,7 +116,10 @@ const Signup = () => {
             </div>
             <div>
               <Label>Role</Label>
-              <RadioGroup value={role} onValueChange={(v) => setRole(v as 'user' | 'verifier')}>
+              <RadioGroup
+                value={role}
+                onValueChange={(v) => setRole(v as "user" | "verifier")}
+              >
                 <div className="flex items-center space-x-2 p-3 rounded-xl border border-border">
                   <RadioGroupItem value="user" id="user" />
                   <Label htmlFor="user" className="cursor-pointer flex-1">
@@ -98,8 +134,8 @@ const Signup = () => {
                 </div>
               </RadioGroup>
             </div>
-            <Button type="submit" className="w-full rounded-xl">
-              Sign Up
+            <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
           </form>
           <p className="text-center mt-4 text-sm text-muted-foreground">
