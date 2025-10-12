@@ -1,0 +1,136 @@
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser, logout } from "@/lib/mockAuth";
+import { Sprout, LogOut, Gift, Leaf, ShoppingBag } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const Redeem = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(getCurrentUser());
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const rewards = [
+    {
+      id: 1,
+      name: "Seedling Voucher",
+      cost: 10,
+      icon: Leaf,
+      description: "Voucher for 5 native tree seedlings"
+    },
+    {
+      id: 2,
+      name: "Garden Tool Kit",
+      cost: 25,
+      icon: ShoppingBag,
+      description: "Basic tools for land restoration"
+    },
+    {
+      id: 3,
+      name: "Premium Compost",
+      cost: 15,
+      icon: Gift,
+      description: "20kg bag of organic compost"
+    }
+  ];
+
+  const handleRedeem = (reward: typeof rewards[0]) => {
+    if (!user) return;
+    
+    if (user.total_tokens >= reward.cost) {
+      toast({
+        title: "Coming Soon!",
+        description: "Reward redemption will be available soon",
+      });
+    } else {
+      toast({
+        title: "Insufficient Tokens",
+        description: `You need ${reward.cost - user.total_tokens} more tokens`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/dashboard" className="flex items-center gap-3">
+            <Sprout className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-bold">GreenToken</h1>
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{user.total_tokens}</span> tokens
+            </span>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="rounded-xl">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <Card className="rounded-2xl max-w-4xl mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl">Redeem Your Tokens</CardTitle>
+            <CardDescription>
+              Convert your GreenTokens into real-world rewards
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-6">
+              {rewards.map((reward) => {
+                const Icon = reward.icon;
+                const canAfford = user.total_tokens >= reward.cost;
+                
+                return (
+                  <div
+                    key={reward.id}
+                    className={`border border-border rounded-xl p-6 text-center ${
+                      !canAfford ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <Icon className="h-12 w-12 mx-auto mb-4 text-primary" />
+                    <h3 className="font-semibold text-lg mb-2">{reward.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{reward.description}</p>
+                    <p className="text-2xl font-bold text-primary mb-4">{reward.cost} tokens</p>
+                    <Button
+                      onClick={() => handleRedeem(reward)}
+                      disabled={!canAfford}
+                      className="w-full rounded-xl"
+                    >
+                      {canAfford ? 'Redeem' : 'Insufficient Tokens'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                More rewards coming soon! Keep earning tokens by submitting land care proofs.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+};
+
+export default Redeem;
