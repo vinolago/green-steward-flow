@@ -110,7 +110,7 @@ const Landing = () => {
         <div className="relative flex items-center justify-center">
           <div className="relative bg-muted/30 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-muted w-full max-w-md">
             <img
-              src="/public/landcare.webp" // or change this to your preferred image
+              src="/images/landcare.webp" // or change this to your preferred image
               alt="Community Land Care"
               className="rounded-2xl w-full object-contain"
             />
@@ -181,20 +181,20 @@ const Landing = () => {
     {/* Footer */}
     <footer className="border-t border-border bg-card">
       <div className="container mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-        <div className="flex items-center">
+        <div className="flex items-center justify-center md:justify-start">
           <Link to="/" className="flex items-center gap-2">
             <Sprout className="h-6 w-6 text-primary" />
             <span className="font-semibold">GreenToken</span>
           </Link>
         </div>
 
-        <div className="flex justify-center space-x-6 text-sm text-muted-foreground">
+        <div className="flex flex-col md:flex-row items-center gap-2 md:gap-0 md:space-x-6 text-center text-sm text-muted-foreground">
           <Link to="/" className="hover:text-foreground">Home</Link>
           <a href="#how-it-works" className="hover:text-foreground">How It Works</a>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
         </div>
 
-        <div className="flex justify-end text-sm text-muted-foreground">
+        <div className="flex justify-center md:justify-end text-sm text-muted-foreground">
           © 2025 GreenToken. Built for a greener future.
         </div>
       </div>
