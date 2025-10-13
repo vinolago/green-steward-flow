@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sprout } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient"; // ✅ new import
 
+ 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,7 +78,9 @@ const Login = () => {
       <Card className="w-full max-w-md rounded-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Sprout className="h-12 w-12 text-primary" />
+            <Link to="/">
+              <Sprout className="h-12 w-12 text-primary" />
+            </Link>
           </div>
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>Log in to your GreenToken account</CardDescription>

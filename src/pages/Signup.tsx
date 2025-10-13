@@ -83,7 +83,9 @@ const Signup = () => {
       <Card className="w-full max-w-md rounded-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Sprout className="h-12 w-12 text-primary" />
+            <Link to="/">
+              <Sprout className="h-12 w-12 text-primary" />
+            </Link>
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>Join the GreenToken community</CardDescription>
