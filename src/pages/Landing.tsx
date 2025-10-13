@@ -106,11 +106,10 @@ const Landing = () => {
         </div>
 
         {/* Right Side: Image */}
-        {/* Right Side: Image */}
         <div className="relative flex items-center justify-center">
           <div className="relative bg-muted/30 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-muted w-full max-w-md">
             <img
-              src="/images/landcare.webp" // or change this to your preferred image
+              src="/public/images/landcare.webp" // or change this to your preferred image
               alt="Community Land Care"
               className="rounded-2xl w-full object-contain"
             />
