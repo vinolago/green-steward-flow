@@ -109,7 +109,7 @@ const Landing = () => {
         <div className="relative flex items-center justify-center">
           <div className="relative bg-muted/30 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-muted w-full max-w-md">
             <img
-              src="/public/images/landcare.webp" // or change this to your preferred image
+              src="/images/landcare.webp" 
               alt="Community Land Care"
               className="rounded-2xl w-full object-contain"
             />
