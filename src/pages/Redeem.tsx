@@ -10,6 +10,7 @@ const Redeem = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   // ✅ Fetch user + profile from Supabase
   useEffect(() => {
@@ -32,8 +33,10 @@ const Redeem = () => {
       }
 
       setUser({ ...authData.user, ...profile });
+      setLoading(false);
     };
 
+    fetchUser();
     fetchUser();
   }, [navigate]);
 
@@ -72,44 +75,66 @@ const Redeem = () => {
     {
       id: 1,
       name: "Seedling Voucher",
-      cost: 10,
+      cost: 1000,
       icon: Leaf,
       description: "Voucher for 5 native tree seedlings",
     },
     {
       id: 2,
       name: "Garden Tool Kit",
-      cost: 25,
+      cost: 1500,
       icon: ShoppingBag,
       description: "Basic tools for land restoration",
     },
     {
       id: 3,
       name: "Premium Compost",
-      cost: 15,
+      cost: 2500,
       icon: Gift,
       description: "20kg bag of organic compost",
     },
   ];
 
-  const handleRedeem = (reward: (typeof rewards)[0]) => {
+  const handleRedeem = async (reward: (typeof rewards)[0]) => {
     if (!user) return;
 
-    if (user.total_tokens >= reward.cost) {
-      toast({
-        title: "Coming Soon!",
-        description: "Reward redemption will be available soon.",
-      });
-    } else {
+    const userTokens = Number(user.total_tokens || 0);
+
+    if (userTokens < reward.cost) {
       toast({
         title: "Insufficient Tokens",
-        description: `You need ${reward.cost - user.total_tokens} more tokens.`,
+        description: `You need ${reward.cost - userTokens} more tokens.`,
         variant: "destructive",
       });
+      return;
     }
+
+    // Record the redemption in Supabase (which triggers automatic token deduction)
+    const { error } = await supabase.from("redemptions").insert([
+      {
+        user_id: user.id,
+        amount: reward.cost,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error logging redemption:", error);
+      toast({
+        title: "Redemption Failed",
+        description: "Something went wrong while redeeming your reward.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Reward Redeemed!",
+      description: `You successfully redeemed ${reward.name} for ${reward.cost} tokens.`,
+    });
+
+  
   };
 
-  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">

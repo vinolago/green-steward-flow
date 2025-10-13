@@ -19,7 +19,7 @@ export const MyTokens = ({ userId }: MyTokensProps) => {
 
     // Fetch user’s total tokens
     const { data: userData, error: userError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("total_tokens")
       .eq("id", userId)
       .single();
@@ -58,7 +58,7 @@ export const MyTokens = ({ userId }: MyTokensProps) => {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "users", filter: `id=eq.${userId}` },
+        { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` },
         () => {
           // Re-fetch if user's total_tokens change
           fetchTokens();

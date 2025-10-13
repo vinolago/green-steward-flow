@@ -91,6 +91,7 @@ export const SubmissionForm = ({ userId, userName, onSubmit }: SubmissionFormPro
       const { error } = await supabase.from("submissions").insert([
         {
           user_id: userId,
+          user_name: userName,
           activity_type: activityType,
           description,
           location,

@@ -26,6 +26,9 @@ const Signup = () => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { name },
+      }
     });
 
     if (error) {
@@ -41,21 +44,25 @@ const Signup = () => {
     const user = data.user;
 
     if (user) {
-      // 2️⃣ Create a profile row for the user in 'profiles' table
+      //  Create a profile row for the user in 'profiles' table
       const { error: profileError } = await supabase.from("profiles").insert([
         {
           id: user.id,
           name,
           role,
+          email: user.email,
+          total_tokens: 0,
         },
       ]);
 
+    
       setLoading(false);
 
       if (profileError) {
+        
         toast({
-          title: "Error creating profile",
-          description: profileError.message,
+          title: "Error creating profile or user",
+          description: `${profileError?.message || ""}`,
           variant: "destructive",
         });
         return;
@@ -68,6 +75,7 @@ const Signup = () => {
 
       navigate(role === "verifier" ? "/verify" : "/dashboard");
     }
+  
   };
 
   return (

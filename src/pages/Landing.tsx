@@ -57,7 +57,7 @@ const Landing = () => {
         <div className="text-center">
           <Link to="/signup">
             <Button size="lg" className="text-lg px-8 py-6 rounded-xl">
-              Join Now
+              Join the movement
             </Button>
           </Link>
           <p className="mt-4 text-muted-foreground">

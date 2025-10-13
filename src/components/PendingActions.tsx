@@ -56,172 +56,187 @@ export const PendingActions = ({ onUpdate }: PendingActionsProps) => {
       return;
     }
 
-    // Award 1 token to user
+    // Award 10 tokens to user
     const { data: userData, error: userError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("total_tokens")
       .eq("id", userId)
       .single();
 
     if (!userError && userData) {
-      const newTotal = (userData.total_tokens || 0) + 1;
+      const newTotal = (userData.total_tokens || 0) + 10;
       const { error: tokenError } = await supabase
-        .from("users")
+        .from("profiles")
         .update({ total_tokens: newTotal })
         .eq("id", userId);
 
       if (tokenError) {
         console.error("Error updating user tokens:", tokenError);
       }
-    }
 
-    toast({
-      title: "Approved!",
-      description: "User has been awarded 1 GreenToken",
-    });
+      const { error: tokenInsertError } = await supabase.from("tokens").insert([
+        {
+          user_id: userId,
+          action_id: actionId,
+          value: 10,
+          issued_at: new Date().toISOString(),
+        },
+      ]);
+       
+      if (tokenInsertError) {
+        console.error("Error inserting token record:", tokenInsertError);
+        console.error("Error awarding tokens:", tokenInsertError);
+      
+      }
 
-    await fetchPendingSubmissions();
-    onUpdate();
-  };
-
-  // ✅ Reject submission
-  const handleReject = async (actionId: string) => {
-    const { error } = await supabase
-      .from("submissions")
-      .update({ status: "rejected" })
-      .eq("id", actionId);
-
-    if (error) {
-      console.error("Error rejecting submission:", error);
       toast({
-        title: "Error",
-        description: "Failed to reject submission",
-        variant: "destructive",
+        title: "Approved!",
+        description: "User has been awarded 10 GreenTokens",
       });
-      return;
-    }
 
-    toast({
-      title: "Rejected",
-      description: "Submission has been rejected",
-    });
-
-    await fetchPendingSubmissions();
-    onUpdate();
-  };
-
-  // ✅ Fetch + real-time updates
-  useEffect(() => {
-    fetchPendingSubmissions();
-
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel("realtime_pending_submissions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "submissions" },
-        (payload) => {
-          if (
-            payload.eventType === "INSERT" ||
-            payload.eventType === "UPDATE" ||
-            payload.eventType === "DELETE"
-          ) {
-            fetchPendingSubmissions();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+      await fetchPendingSubmissions();
+      onUpdate();
     };
-  }, []);
-
-  if (loading) {
-    return (
-      <Card className="rounded-2xl">
-        <CardContent className="text-center p-6">Loading pending submissions...</CardContent>
-      </Card>
-    );
   }
 
-  return (
-    <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>Pending Verifications</CardTitle>
-        <CardDescription>Review and approve land care submissions</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {submissions.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            No pending submissions
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {submissions.map((submission) => (
-              <div key={submission.id} className="border border-border rounded-xl p-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <img
-                      src={submission.photo_url}
-                      alt="Activity"
-                      className="w-full h-64 object-cover rounded-lg"
-                    />
-                  </div>
-                  <div className="space-y-3">
+    // ✅ Reject submission
+    const handleReject = async (actionId: string) => {
+      const { error } = await supabase
+        .from("submissions")
+        .update({ status: "rejected" })
+        .eq("id", actionId);
+
+      if (error) {
+        console.error("Error rejecting submission:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reject submission",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Rejected",
+        description: "Submission has been rejected",
+      });
+
+      await fetchPendingSubmissions();
+      onUpdate();
+    };
+
+    // ✅ Fetch + real-time updates
+    useEffect(() => {
+      fetchPendingSubmissions();
+
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel("realtime_pending_submissions")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "submissions" },
+          (payload) => {
+            if (
+              payload.eventType === "INSERT" ||
+              payload.eventType === "UPDATE" ||
+              payload.eventType === "DELETE"
+            ) {
+              fetchPendingSubmissions();
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, []);
+
+    if (loading) {
+      return (
+        <Card className="rounded-2xl">
+          <CardContent className="text-center p-6">Loading pending submissions...</CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Pending Verifications</CardTitle>
+          <CardDescription>Review and approve land care submissions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {submissions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No pending submissions
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {submissions.map((submission) => (
+                <div key={submission.id} className="border border-border rounded-xl p-6">
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="font-semibold text-lg mb-1">
-                        {activityLabels[submission.activity_type]}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Submitted by:
-                        <span className="font-medium text-foreground">
-                          {submission.user_name}
-                        </span>
-                      </p>
+                      <img
+                        src={submission.photo_url}
+                        alt="Activity"
+                        className="w-full h-64 object-cover rounded-lg"
+                      />
                     </div>
-
-                    {submission.description && (
+                    <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-medium mb-1">Description:</p>
-                        <p className="text-sm text-muted-foreground">{submission.description}</p>
+                        <h3 className="font-semibold text-lg mb-1">
+                          {activityLabels[submission.activity_type]}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Submitted by:
+                          <span className="font-medium text-foreground">
+                            {submission.user_name}
+                          </span>
+                        </p>
                       </div>
-                    )}
 
-                    {submission.location && (
-                      <p className="text-sm text-muted-foreground">
-                        📍 Location: {submission.location}
+                      {submission.description && (
+                        <div>
+                          <p className="text-sm font-medium mb-1">Description:</p>
+                          <p className="text-sm text-muted-foreground">{submission.description}</p>
+                        </div>
+                      )}
+
+                      {submission.location && (
+                        <p className="text-sm text-muted-foreground">
+                          📍 Location: {submission.location}
+                        </p>
+                      )}
+
+                      <p className="text-xs text-muted-foreground">
+                        Submitted: {new Date(submission.created_at).toLocaleString()}
                       </p>
-                    )}
 
-                    <p className="text-xs text-muted-foreground">
-                      Submitted: {new Date(submission.created_at).toLocaleString()}
-                    </p>
-
-                    <div className="flex gap-3 pt-4">
-                      <Button
-                        onClick={() => handleApprove(submission.id, submission.user_id)}
-                        className="flex-1 rounded-xl"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => handleReject(submission.id)}
-                        variant="destructive"
-                        className="flex-1 rounded-xl"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
+                      <div className="flex gap-3 pt-4">
+                        <Button
+                          onClick={() => handleApprove(submission.id, submission.user_id)}
+                          className="flex-1 rounded-xl"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => handleReject(submission.id)}
+                          variant="destructive"
+                          className="flex-1 rounded-xl"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
